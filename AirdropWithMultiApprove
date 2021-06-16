@@ -1,0 +1,133 @@
+pragma solidity ^0.5.17;
+
+library SafeMath {
+  function add(uint a, uint b) internal pure returns (uint c) {
+    c = a + b;
+    require(c >= a);
+  }
+  function sub(uint a, uint b) internal pure returns (uint c) {
+    require(b <= a);
+    c = a - b;
+  }
+  function mul(uint a, uint b) internal pure returns (uint c) {
+    c = a * b;
+    require(a == 0 || c / a == b);
+  }
+  function div(uint a, uint b) internal pure returns (uint c) {
+    require(b > 0);
+    c = a / b;
+  }
+}
+
+contract BEP20Interface {
+    
+  function totalSupply() public view returns (uint);
+  function balanceOf(address tokenOwner) public view returns (uint balance);
+  function allowance(address tokenOwner, address spender) public view returns (uint remaining);
+  function transfer(address to, uint tokens) public returns (bool success);
+  function approve(address spender, uint tokens) public returns (bool success);
+  function transferFrom(address from, address to, uint tokens) public returns (bool success);
+  
+}
+
+
+contract ApproveAndCallFallBack {
+  function receiveApproval(address from, uint256 tokens, address token, bytes memory data) public;
+}
+
+contract Owned {
+  address public Admininstrator;
+
+
+  constructor() public {
+    Admininstrator = msg.sender;
+  }
+
+  modifier onlyAdmin {
+    require(msg.sender == Admininstrator, "Only authorized personnels");
+    _;
+  }
+
+}
+
+contract AIRDROP is Owned{
+    
+    
+  using SafeMath for uint;
+ 
+  address public token;
+  
+  uint public airdropAmount = 1000000000000000000;
+ 
+  address payable wallet;
+  
+  bool public startAirdrop = false;
+  bool public startWhitelist = true;
+ 
+  mapping(address => bool) public whitelisted;
+  mapping(address => bool) public claimed;
+  mapping(address => bool) public superlist;
+  uint256 public total ;
+
+ 
+  constructor() public { Admininstrator = msg.sender; }
+   
+ //========================================CONFIGURATIONS======================================
+ 
+ 
+ function setWallet(address payable _wallet) public onlyAdmin{wallet = _wallet;}
+ function setToken(address _tokenaddress) public onlyAdmin{token = _tokenaddress;}
+ function setAirdropAmount(uint256 _amount) public onlyAdmin{airdropAmount = _amount;}
+ 
+ 
+ function AllowAirdrop(bool _status) public onlyAdmin{startAirdrop = _status;}
+ function AllowWhitelisting(bool _status) public onlyAdmin{startWhitelist = _status;}	
+	
+
+ function whitelist() public returns(bool){
+     
+     require(startWhitelist == true, 'whitelisting is currently not open');
+     require(whitelisted[msg.sender] == false, 'already whitelisted');
+     whitelisted[msg.sender] = true;
+     
+ }
+  
+ 
+ 
+ function claim() public returns(bool){
+     
+     require(startWhitelist == false, 'whitelisting is currently open');
+     require(startAirdrop == true, 'Claiming is currently not initialized');
+     require(BEP20Interface(token).balanceOf(address(this)) >= airdropAmount, 'insufficient airdrop token balance');
+     require(whitelisted[msg.sender] == true, 'wallet not whitelisted');
+     require(superlist[msg.sender] == true, 'wallet not approved');
+     require(claimed[msg.sender] == false, 'already claimed');
+     claimed[msg.sender] = true;
+     require(BEP20Interface(token).transfer(msg.sender, airdropAmount), "Transaction failed");
+     
+ }
+
+  function RetrieveToken(uint256 _amount) public onlyAdmin returns(bool){
+      
+      require(wallet != 0x0000000000000000000000000000000000000000, 'wallet has not been set up');
+      require(BEP20Interface(token).transfer(wallet, _amount), "Transaction failed");
+      
+  }
+  
+  
+  function multiapprove(address[] memory _contributors, bool[] memory _state) public onlyAdmin returns(bool){
+      
+    uint8 i = 0;
+    for (i; i < _contributors.length; i++) {
+        Walletapprove(_contributors[i], _state[i]);
+        total += 1;
+    }
+   
+    
+}
+function Walletapprove(address _contributors, bool _state) internal returns(bool){
+    superlist[_contributors] = _state;
+}
+ 
+ 
+}
